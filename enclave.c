@@ -4,8 +4,8 @@
 #include <stdio.h>      /* vsnprintf */
 
 #include "enclave.h"
-#include "enclave_t.h" 
-#include <string.h> 
+#include "enclave_t.h"
+#include <string.h>
 #include <ctype.h>
 #include <sgx_tseal.h>
 #include <sgx_utils.h>
@@ -13,8 +13,8 @@
 #include <stdlib.h>
 #include "sgx_tprotected_fs.h"
 
-/* 
- * printf: 
+/*
+ * printf:
  *   Invokes OCALL to display the enclave buffer to the terminal.
  */
 
@@ -43,7 +43,7 @@ void ecall_enclaveString(char *s, size_t len)
 	}
 }
 
-SGX_FILE* ecall_file_open(const char* filename, const char* mode) 
+SGX_FILE* ecall_file_open(const char* filename, const char* mode)
 {
 	SGX_FILE* a;
 	a = sgx_fopen_auto_key(filename, mode);
@@ -58,13 +58,13 @@ uint64_t ecall_file_get_file_size(SGX_FILE * fp)
 	return file_size;
 }
 
-size_t ecall_file_write(SGX_FILE* fp, char data[100]) 
+size_t ecall_file_write(SGX_FILE* fp, char data[100])
 {
 	size_t sizeofWrite;
 	size_t len = strlen(data);
 	sizeofWrite = sgx_fwrite(data, sizeof(char), len, fp);
 
-	/*for (int i = 0; i < 5; i++) 
+	/*for (int i = 0; i < 5; i++)
 	{
 		char buffer[] = { 'x' , 'c' };
 		sizeofWrite += sgx_fwrite(buffer, sizeof(char), sizeof(buffer), fp);
@@ -72,7 +72,7 @@ size_t ecall_file_write(SGX_FILE* fp, char data[100])
 	return sizeofWrite;
 }
 
-size_t ecall_file_read(SGX_FILE* fp, char* readData, uint64_t size) 
+size_t ecall_file_read(SGX_FILE* fp, char* readData, uint64_t size)
 {
 	char *data;
 	uint64_t startN = 1;
