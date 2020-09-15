@@ -270,9 +270,13 @@ int SGX_CDECL main(int argc, char *argv[])
 
   char * rem_file = "remove_test.txt";
   ret = ecall_file_open(eid, &fp, rem_file, mode);
+  printf("remove_test.txt created \n");
 
   ret = ecall_file_remove(eid, &fileHandle, rem_file);
-
+  if(fileHandle)
+    printf("removal not successful \n");
+  else
+    printf("remove_test.txt has been removed successfully \n");
 
     /* Destroy the enclave */
     sgx_destroy_enclave(eid);
