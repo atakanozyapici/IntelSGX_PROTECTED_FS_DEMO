@@ -118,7 +118,7 @@ void print_error_message(sgx_status_t ret)
             break;
         }
     }
-    
+
     if (idx == ttl)
         printf("Error: Unexpected error occurred.\n");
 }
@@ -134,15 +134,15 @@ int initialize_enclave(void)
     sgx_launch_token_t token = {0};
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
     int updated = 0;
-    
-    /* Step 1: try to retrieve the launch token saved by last transaction 
+
+    /* Step 1: try to retrieve the launch token saved by last transaction
      *         if there is no token, then create a new one.
      */
 
     /* try to get the token saved in $HOME */
     const char *home_dir = getpwuid(getuid())->pw_dir;
-    
-    if (home_dir != NULL && 
+
+    if (home_dir != NULL &&
         (strlen(home_dir)+strlen("/")+sizeof(TOKEN_FILENAME)+1) <= MAX_PATH) {
         /* compose the token path */
         strncpy(token_path, home_dir, strlen(home_dir));
@@ -199,8 +199,8 @@ int initialize_enclave(void)
 /* OCall functions */
 void ocall_print_string(const char *str)
 {
-    /* Proxy/Bridge will check the length and null-terminate 
-     * the input string to prevent buffer overflow. 
+    /* Proxy/Bridge will check the length and null-terminate
+     * the input string to prevent buffer overflow.
      */
     printf("%s", str);
 }
@@ -232,12 +232,12 @@ int SGX_CDECL main(int argc, char *argv[])
     if(initialize_enclave() < 0){
         printf("Enter a character before exit ...\n");
         getchar();
-        return -1; 
+        return -1;
     }
- 
+
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-	uint64_t file_size = 0;    
+	uint64_t file_size = 0;
 	SGX_FILE* fp;
 	const char* filename = "SGX_File_Protection_System.txt";
 	const char* mode = "w+";
@@ -267,14 +267,19 @@ int SGX_CDECL main(int argc, char *argv[])
 
 	int32_t fileHandle;
 	ret = ecall_file_close(eid, &fileHandle, fp);
-    
+
+  char * rem_file = "remove_test.txt";
+  ret = ecall_file_open(eid, &fp, rem_file, mode);
+
+  ret = ecall_file_remove(eid, &fileHandle, rem_file);
+
+
     /* Destroy the enclave */
     sgx_destroy_enclave(eid);
-    
+
     printf("Info: SampleEnclave successfully returned.\n");
-    
+
     printf("Enter a character before exit ...\n");
     getchar();
     return 0;
 }
-

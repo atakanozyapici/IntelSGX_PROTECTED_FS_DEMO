@@ -97,3 +97,10 @@ int32_t ecall_file_close(SGX_FILE* fp)
 	a = sgx_fclose(fp);
 	return a;
 }
+
+int32_t ecall_file_remove(const char* filename)
+{
+  int32_t ret;
+  ret = sgx_remove(filename);
+  return ret;
+}
