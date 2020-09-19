@@ -72,6 +72,18 @@ size_t ecall_file_write(SGX_FILE* fp, char data[100])
 	return sizeofWrite;
 }
 
+size_t ecall_seq_file_write(SGX_FILE* fp, size_t size, size_t count, char data[16384])
+{
+  // SGX_FILE* fp;
+  // fp = sgx_fopen_auto_key(filename, mode);
+  size_t ret;
+  for(int i=0; i < count; i++)
+    ret = sgx_fwrite((void*)data, sizeof(char), size, fp);
+
+  // sgx_fflush(fp);
+  return ret;
+}
+
 size_t ecall_file_read(SGX_FILE* fp, char* readData, uint64_t size)
 {
 	char *data;
@@ -88,6 +100,20 @@ size_t ecall_file_read(SGX_FILE* fp, char* readData, uint64_t size)
 	memcpy(readData, data, sizeofRead);
 	memset(readData+sizeofRead, '\0', 1);
 	printf("%s\n", readData);
+	return sizeofRead;
+}
+
+size_t ecall_seq_file_read(SGX_FILE* fp, char* read_out, uint64_t size, uint64_t count)
+{
+	char *data;
+	sgx_fseek(fp, 0, SEEK_SET);
+	data = (char*)malloc(sizeof(char)*size);
+  size_t sizeofRead = 0;
+
+  for(int i=0; i < count; i++){
+  	sizeofRead = sgx_fread(data, sizeof(char), size, fp);
+  	memcpy((void*)(read_out), data, size);
+  }
 	return sizeofRead;
 }
 

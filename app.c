@@ -3,6 +3,8 @@
 #include <assert.h>
 # include <unistd.h>
 # include <pwd.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 # define MAX_PATH FILENAME_MAX
 
 #include "sgx_tprotected_fs.h"
@@ -11,6 +13,13 @@
 #include "app.h"
 #include "enclave_u.h"
 #define MAX_BUF_LEN 100
+/*Size definitions */
+#define MB_8 134217728
+#define KB_16 16384
+#define KB_4 4096
+#define KB_64 65536
+#define KB_1024 1048576
+#define M_K_128 131072
 /* Global EID shared by multiple threads */
 sgx_enclave_id_t eid = 0;
 
@@ -221,6 +230,15 @@ void ocall_print_uint(uint8_t * u, size_t size)
     printf("\n");
 }
 
+//function to calculate the elapsed time since the given time
+int elapsed_time(struct rusage* begin, struct rusage* end)
+{
+  int sec = ((end->ru_utime.tv_sec - begin->ru_utime.tv_sec) + (end->ru_stime.tv_sec - begin->ru_stime.tv_sec))  * 1000000;
+  int usec = ((end->ru_utime.tv_usec - begin->ru_utime.tv_usec) + (end->ru_stime.tv_usec - begin->ru_stime.tv_usec));
+
+  return sec + usec;
+}
+
 /* Application entry */
 int SGX_CDECL main(int argc, char *argv[])
 {
@@ -235,54 +253,101 @@ int SGX_CDECL main(int argc, char *argv[])
         return -1;
     }
 
-    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+  sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
 	uint64_t file_size = 0;
 	SGX_FILE* fp;
-	const char* filename = "SGX_File_Protection_System.txt";
+	const char* filename = "SGX_File_Protection_System_bench.txt";
 	const char* mode = "w+";
 
 	//file Open
-	ret = ecall_file_open(eid, &fp, filename, mode);
+	// ret = ecall_file_open(eid, &fp, filename, mode);
 
-	//Get Enclve Secret
-	ret = ecall_enclaveString(eid, buffer, MAX_BUF_LEN);
-	printf("Enclave Secret Value: %s\n", buffer);
+  //test seq write for
+  int32_t fileHandle;
+  size_t write_ret;
+  size_t size, count;
+  char value[KB_16];
+  struct rusage begin;
+  struct rusage end;
+  int time;
+  float speed;
+  int return_size;
 
-	//Write to file
-	size_t sizeOfWrite = 0;
-	ret = ecall_file_write(eid, &sizeOfWrite, fp, buffer);
-	printf("Size of Write=  %d\n", sizeOfWrite);
+  for(int i = 0; i < 16384; i++){
+    value[i] = i;
+  }
 
-	//Read from File
-	ret = ecall_file_get_file_size(eid, &file_size, fp);
-	size_t sizeOfRead = 0;
-	char data[100];
-	ret = ecall_file_read(eid, &sizeOfRead, fp, data, file_size);
-	printf("Size of Read= %d\n", sizeOfRead);
+  for(int size = KB_64; size <= KB_1024; size = size*2){
+    for(int i = KB_4; i <= KB_16;){
+      ret = ecall_file_open(eid, &fp, filename, mode);
+      getrusage(RUSAGE_SELF, &begin);
+      ecall_seq_file_write(eid, &write_ret, fp, i, size / i, value);
+      getrusage(RUSAGE_SELF, &end);
+      time = elapsed_time(&begin, &end);
+      speed = (float)(size/1024) * 1000000 / (float)time;
+      ret = ecall_file_get_file_size(eid, &return_size, fp);
+      printf("%dkB seq writes with package size %dkB, %f kB/sec\n",(size/1024), (i/1024), speed);
+      if(size != KB_1024 && i != KB_16){
+        ret = ecall_file_close(eid, &fileHandle, fp);
+        ret = ecall_file_remove(eid, &fileHandle, filename);
+      }
+      i = i*2;
+    }
+  }
+  char data_out[KB_1024];
+  size_t read_ret;
 
-
-	data[sizeOfRead] = '\0';
-	printf("Read Data= %s\n", data);
-
-	int32_t fileHandle;
-	ret = ecall_file_close(eid, &fileHandle, fp);
-
-  char * rem_file = "remove_test.txt";
-  ret = ecall_file_open(eid, &fp, rem_file, mode);
-  printf("remove_test.txt created \n");
-
-  ret = ecall_file_remove(eid, &fileHandle, rem_file);
-  if(fileHandle)
-    printf("removal not successful \n");
-  else
-    printf("remove_test.txt has been removed successfully \n");
-
-    /* Destroy the enclave */
-    sgx_destroy_enclave(eid);
-
-    printf("Info: SampleEnclave successfully returned.\n");
-
+  for(int size = KB_64; size <= KB_1024; size = size*2){
+    for(int i = KB_4; i <= KB_16;){
+      getrusage(RUSAGE_SELF, &begin);
+      ecall_seq_file_read(eid, &read_ret, fp, data_out, i,size / i);
+      getrusage(RUSAGE_SELF, &end);
+      time = elapsed_time(&begin, &end);
+      speed = (float)(size/1024) * 1000000 / (float)time;
+      printf("%dkB seq reads with package size %dkB, %f kB/sec\n",(size/1024), (i/1024), speed);
+      i = i*2;
+    }
+  }
+  //
+	// //Get Enclve Secret
+	// ret = ecall_enclaveString(eid, buffer, MAX_BUF_LEN);
+	// printf("Enclave Secret Value: %s\n", buffer);
+  //
+	// //Write to file
+	// size_t sizeOfWrite = 0;
+	// ret = ecall_file_write(eid, &sizeOfWrite, fp, buffer);
+	// printf("Size of Write=  %d\n", sizeOfWrite);
+  //
+	// //Read from File
+	// ret = ecall_file_get_file_size(eid, &file_size, fp);
+	// size_t sizeOfRead = 0;
+	// char data[100];
+	// ret = ecall_file_read(eid, &sizeOfRead, fp, data, file_size);
+	// printf("Size of Read= %d\n", sizeOfRead);
+  //
+  //
+	// data[sizeOfRead] = '\0';
+	// printf("Read Data= %s\n", data);
+  //
+	// int32_t fileHandle;
+	// ret = ecall_file_close(eid, &fileHandle, fp);
+  //
+  // char * rem_file = "remove_test.txt";
+  // ret = ecall_file_open(eid, &fp, rem_file, mode);
+  // printf("remove_test.txt created \n");
+  //
+  // ret = ecall_file_remove(eid, &fileHandle, rem_file);
+  // if(fileHandle)
+  //   printf("removal not successful \n");
+  // else
+  //   printf("remove_test.txt has been removed successfully \n");
+  //
+  //   /* Destroy the enclave */
+  //   sgx_destroy_enclave(eid);
+  //
+  //   printf("Info: SampleEnclave successfully returned.\n");
+  //
     printf("Enter a character before exit ...\n");
     getchar();
     return 0;
