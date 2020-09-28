@@ -305,7 +305,7 @@ int SGX_CDECL main(int argc, char *argv[])
         //store the results
         speed = elapsed_time_to_speed(&begin, &end, size);
         ret = ecall_file_get_file_size(eid, &return_size, fp);
-        printf("%dkB seq writes with package size %dkB, %lf kB/sec\n",size/1024, i/1024, speed);
+        printf("%dkB seq writes with package size %dkB, %lf kB/sec\n",return_size/1024, i/1024, speed);
 
         ret = ecall_file_flush_close(eid, &fileHandle, fp);
 

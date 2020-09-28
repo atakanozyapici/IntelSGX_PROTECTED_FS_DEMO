@@ -108,7 +108,6 @@ size_t ecall_file_read(SGX_FILE* fp, char* readData, uint64_t size)
 
 size_t ecall_seq_file_read(SGX_FILE* fp, char* read_out, uint64_t size, uint64_t rec_len)
 {
-	char *data;
 	sgx_fseek(fp, 0, SEEK_SET);
   size_t sizeofRead = 0;
 
