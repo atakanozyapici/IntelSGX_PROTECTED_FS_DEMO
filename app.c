@@ -5,6 +5,7 @@
 # include <pwd.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <time.h>
 # define MAX_PATH FILENAME_MAX
 
 #include "sgx_tprotected_fs.h"
@@ -28,6 +29,12 @@ typedef struct _sgx_errlist_t {
     const char *msg;
     const char *sug; /* Suggestion */
 } sgx_errlist_t;
+
+typedef struct timing_t {
+    double speed;
+    int size;
+    int rec_len;
+} timing_t;
 
 /* Error code returned by sgx_create_enclave */
 static sgx_errlist_t sgx_errlist[] = {
@@ -231,12 +238,20 @@ void ocall_print_uint(uint8_t * u, size_t size)
 }
 
 //function to calculate the elapsed time since the given time
-int elapsed_time(struct rusage* begin, struct rusage* end)
+double elapsed_time_to_speed(struct rusage* begin, struct rusage* end, size_t size)
 {
   int sec = ((end->ru_utime.tv_sec - begin->ru_utime.tv_sec) + (end->ru_stime.tv_sec - begin->ru_stime.tv_sec))  * 1000000;
   int usec = ((end->ru_utime.tv_usec - begin->ru_utime.tv_usec) + (end->ru_stime.tv_usec - begin->ru_stime.tv_usec));
 
-  return sec + usec;
+  double speed = (double)((size* 1000000.0)/1024.0)  / (double)(sec + usec);
+  return speed;
+}
+
+void add_time(timing_t* array, int ind, double speed, size_t size, size_t rec_len){
+  array[ind].speed = speed;
+  array[ind].size = size;
+  array[ind].rec_len = rec_len;
+  return;
 }
 
 /* Application entry */
@@ -259,6 +274,7 @@ int SGX_CDECL main(int argc, char *argv[])
 	SGX_FILE* fp;
 	const char* filename = "SGX_File_Protection_System_bench.txt";
 	const char* mode = "w+";
+  const char* mode_read = "r+";
 
 	//file Open
 	// ret = ecall_file_open(eid, &fp, filename, mode);
@@ -266,50 +282,48 @@ int SGX_CDECL main(int argc, char *argv[])
   //test seq write for
   int32_t fileHandle;
   size_t write_ret;
-  size_t size, count;
-  char value[KB_16];
+  char value[KB_1024];
+  char data_out[KB_1024];
   struct rusage begin;
   struct rusage end;
-  int time;
-  float speed;
+  long time;
+  double speed =0.0;
   int return_size;
-
-  for(int i = 0; i < 16384; i++){
-    value[i] = i;
-  }
-
-  for(int size = KB_64; size <= KB_1024; size = size*2){
-    for(int i = KB_4; i <= KB_16;){
-      ret = ecall_file_open(eid, &fp, filename, mode);
-      getrusage(RUSAGE_SELF, &begin);
-      ecall_seq_file_write(eid, &write_ret, fp, i, size / i, value);
-      getrusage(RUSAGE_SELF, &end);
-      time = elapsed_time(&begin, &end);
-      speed = (float)(size/1024) * 1000000 / (float)time;
-      ret = ecall_file_get_file_size(eid, &return_size, fp);
-      printf("%dkB seq writes with package size %dkB, %f kB/sec\n",(size/1024), (i/1024), speed);
-      if(size != KB_1024 && i != KB_16){
-        ret = ecall_file_close(eid, &fileHandle, fp);
-        ret = ecall_file_remove(eid, &fileHandle, filename);
-      }
-      i = i*2;
-    }
-  }
-  char data_out[KB_1024];
   size_t read_ret;
 
-  for(int size = KB_64; size <= KB_1024; size = size*2){
-    for(int i = KB_4; i <= KB_16;){
-      getrusage(RUSAGE_SELF, &begin);
-      ecall_seq_file_read(eid, &read_ret, fp, data_out, i,size / i);
-      getrusage(RUSAGE_SELF, &end);
-      time = elapsed_time(&begin, &end);
-      speed = (float)(size/1024) * 1000000 / (float)time;
-      printf("%dkB seq reads with package size %dkB, %f kB/sec\n",(size/1024), (i/1024), speed);
-      i = i*2;
+  for(int i = 0; i < KB_1024; i++){
+    value[i] = (char)rand();
+  }
+
+  for(size_t size = KB_64; size <= KB_1024; size = size*2){
+    for(int i = KB_4; i <= KB_16; i = i*2){
+        ret = ecall_file_open(eid, &fp, filename, mode);
+        //time the read operation
+        getrusage(RUSAGE_SELF, &begin);
+        ecall_seq_file_write(eid, &write_ret, fp, size, i, value);
+        getrusage(RUSAGE_SELF, &end);
+        //store the results
+        speed = elapsed_time_to_speed(&begin, &end, size);
+        ret = ecall_file_get_file_size(eid, &return_size, fp);
+        printf("%dkB seq writes with package size %dkB, %lf kB/sec\n",size/1024, i/1024, speed);
+
+        ret = ecall_file_flush_close(eid, &fileHandle, fp);
+
+        ret = ecall_file_open(eid, &fp, filename, mode_read);
+        getrusage(RUSAGE_SELF, &begin);
+        ecall_seq_file_read(eid, &read_ret, fp, data_out, size,i);
+        getrusage(RUSAGE_SELF, &end);
+
+        speed = elapsed_time_to_speed(&begin, &end, return_size);
+        printf("%dkB seq reads with package size %dkB, %lf kB/sec\n\n",size/1024, i/1024, speed);
+
+        //remove the file for the next run
+        ret = ecall_file_close(eid, &fileHandle, fp);
+        ret = ecall_file_remove(eid, &fileHandle, filename);
     }
   }
-  //
+
+
 	// //Get Enclve Secret
 	// ret = ecall_enclaveString(eid, buffer, MAX_BUF_LEN);
 	// printf("Enclave Secret Value: %s\n", buffer);
