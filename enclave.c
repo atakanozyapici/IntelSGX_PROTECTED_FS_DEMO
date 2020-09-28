@@ -110,13 +110,12 @@ size_t ecall_seq_file_read(SGX_FILE* fp, char* read_out, uint64_t size, uint64_t
 {
 	char *data;
 	sgx_fseek(fp, 0, SEEK_SET);
-	data = (char*)malloc(sizeof(char)*(rec_len));
   size_t sizeofRead = 0;
 
   for(int i=0; i < (size/rec_len); i++){
-  	sizeofRead = sgx_fread(data, rec_len, 1, fp);
-  	memcpy(&read_out[rec_len*i], data, sizeofRead);
+  	sizeofRead += sgx_fread(&read_out[rec_len*i], rec_len, 1, fp);
   }
+
 	return sizeofRead;
 }
 
