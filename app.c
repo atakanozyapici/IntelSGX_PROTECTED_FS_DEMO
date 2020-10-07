@@ -288,24 +288,28 @@ int SGX_CDECL main(int argc, char *argv[])
   struct rusage end;
   long time;
   double speed =0.0;
+  double read_speed = 0, write_speed = 0;
   int return_size;
   size_t read_ret;
 
-  for(int i = 0; i < KB_1024; i++){
+  for(int i = 0; i < KB_1024*2; i++){
     value[i] = (char)rand();
   }
 
   for(size_t size = KB_64; size <= KB_1024; size = size*2){
-    for(int i = KB_4; i <= KB_16; i = i*2){
+    for(int i = KB_4; i <= size; i = i*2){
+      read_speed = 0;
+      write_speed = 0;
+      for(int round = 0; round < 10; round++){
         ret = ecall_file_open(eid, &fp, filename, mode);
         //time the read operation
         getrusage(RUSAGE_SELF, &begin);
         ecall_seq_file_write(eid, &write_ret, fp, size, i, value);
         getrusage(RUSAGE_SELF, &end);
         //store the results
-        speed = elapsed_time_to_speed(&begin, &end, size);
+        write_speed += elapsed_time_to_speed(&begin, &end, size);
         ret = ecall_file_get_file_size(eid, &return_size, fp);
-        printf("%dkB seq writes with package size %dkB, %lf kB/sec\n",return_size/1024, i/1024, speed);
+        // printf("%dkB seq writes with package size %dkB, %lf kB/sec\n",return_size/1024, i/1024, speed);
 
         ret = ecall_file_flush_close(eid, &fileHandle, fp);
 
@@ -314,12 +318,15 @@ int SGX_CDECL main(int argc, char *argv[])
         ecall_seq_file_read(eid, &read_ret, fp, data_out, size,i);
         getrusage(RUSAGE_SELF, &end);
 
-        speed = elapsed_time_to_speed(&begin, &end, return_size);
-        printf("%dkB seq reads with package size %dkB, %lf kB/sec\n\n",size/1024, i/1024, speed);
+        read_speed += elapsed_time_to_speed(&begin, &end, size);
+        // printf("%dkB seq reads with package size %dkB, %lf kB/sec\n\n",size/1024, i/1024, speed);
 
         //remove the file for the next run
         ret = ecall_file_close(eid, &fileHandle, fp);
         ret = ecall_file_remove(eid, &fileHandle, filename);
+      }
+      printf("%dkB seq writes with package size %dkB, %lf kB/sec\n",size/1024, i/1024, write_speed/10);
+      printf("%dkB seq reads with package size %dkB, %lf kB/sec\n\n",size/1024, i/1024, read_speed/10);
     }
   }
 
