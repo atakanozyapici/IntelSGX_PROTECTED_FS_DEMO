@@ -80,6 +80,14 @@ size_t ecall_seq_file_write(SGX_FILE* fp, size_t size, size_t rec_len, char* dat
   return ret;
 }
 
+size_t ecall_seq_file_write_none(void* fp, size_t size, size_t rec_len, char* data)
+{
+  size_t ret;
+  for(int i = 0; i < size/rec_len; i++)
+    ret = ocall_fwrite(&ret, (void*)&data[i*rec_len], 1, rec_len, fp);
+  return ret;
+}
+
 int32_t ecall_file_flush_close(SGX_FILE* fp){
   //fluch the cached data to disk
   sgx_fflush(fp);
@@ -113,6 +121,17 @@ size_t ecall_seq_file_read(SGX_FILE* fp, char* read_out, uint64_t size, uint64_t
 
   for(int i=0; i < (size/rec_len); i++){
   	sizeofRead += sgx_fread(&read_out[rec_len*i], rec_len, 1, fp);
+  }
+
+	return sizeofRead;
+}
+
+size_t ecall_seq_file_read_none(void* fp, char* read_out, uint64_t size, uint64_t rec_len)
+{
+  size_t sizeofRead = 0;
+
+  for(int i=0; i < (size/rec_len); i++){
+  	sizeofRead += ocall_fread(&sizeofRead, &read_out[rec_len*i], rec_len, 1, fp);
   }
 
 	return sizeofRead;
