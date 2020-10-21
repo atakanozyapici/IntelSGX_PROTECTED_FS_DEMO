@@ -80,7 +80,7 @@ size_t ecall_seq_file_write(SGX_FILE* fp, size_t size, size_t rec_len, char* dat
   return ret;
 }
 
-size_t ecall_seq_file_write_none(void* fp, size_t size, size_t rec_len, char* data)
+size_t ecall_seq_file_write_none_sgx(void* fp, size_t size, size_t rec_len, char* data)
 {
   size_t ret;
   for(int i = 0; i < size/rec_len; i++)
@@ -126,7 +126,7 @@ size_t ecall_seq_file_read(SGX_FILE* fp, char* read_out, uint64_t size, uint64_t
 	return sizeofRead;
 }
 
-size_t ecall_seq_file_read_none(void* fp, char* read_out, uint64_t size, uint64_t rec_len)
+size_t ecall_seq_file_read_none_sgx(void* fp, char* read_out, uint64_t size, uint64_t rec_len)
 {
   size_t sizeofRead = 0;
 
