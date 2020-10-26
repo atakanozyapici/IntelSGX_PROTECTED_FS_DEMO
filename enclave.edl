@@ -12,8 +12,8 @@ enclave
         public size_t ecall_file_read([user_check]SGX_FILE* fp,[in,out,count=size]char* readData, uint64_t size);
         public int32_t ecall_file_close([user_check]SGX_FILE* fp);
         public int32_t ecall_file_remove([in,string]const char* filename);
-        public size_t ecall_seq_file_write([user_check]SGX_FILE* fp, size_t size, size_t rec_len, [in, count = size] char* data);
-        public size_t ecall_seq_file_read([user_check]SGX_FILE* fp, [out, count = size]char* read_out, uint64_t size, uint64_t rec_len);
+        public size_t ecall_seq_file_write([user_check]SGX_FILE* fp, size_t size, size_t rec_len);
+        public size_t ecall_seq_file_read([user_check]SGX_FILE* fp, uint64_t size, uint64_t rec_len);
         public int32_t ecall_file_flush_close([user_check]SGX_FILE* fp);
         public size_t ecall_seq_file_read_none_sgx([user_check]void* fp, [user_check]char* read_out, uint64_t size, uint64_t rec_len);
         public size_t ecall_seq_file_write_none_sgx([user_check]void* fp, size_t size, size_t rec_len, [user_check] char* data);

@@ -306,7 +306,7 @@ int SGX_CDECL main(int argc, char *argv[])
         ret = ecall_file_open(eid, &fp, filename, mode);
         //time the write operation
         getrusage(RUSAGE_SELF, &begin);
-        ecall_seq_file_write(eid, &write_ret, fp, size, i, value);
+        ecall_seq_file_write(eid, &write_ret, fp, size, i);
         getrusage(RUSAGE_SELF, &end);
         // printf("%d\n",write_ret);
         write_speed += elapsed_time_to_speed(&begin, &end, size);
@@ -316,7 +316,7 @@ int SGX_CDECL main(int argc, char *argv[])
 
         ret = ecall_file_open(eid, &fp, filename, mode_read);
         getrusage(RUSAGE_SELF, &begin);
-        ecall_seq_file_read(eid, &read_ret, fp, data_out, size,i);
+        ecall_seq_file_read(eid, &read_ret, fp, size,i);
         getrusage(RUSAGE_SELF, &end);
 
         read_speed += elapsed_time_to_speed(&begin, &end, size);

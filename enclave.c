@@ -72,11 +72,13 @@ size_t ecall_file_write(SGX_FILE* fp, char data[100])
 	return sizeofWrite;
 }
 
-size_t ecall_seq_file_write(SGX_FILE* fp, size_t size, size_t rec_len, char* data)
+size_t ecall_seq_file_write(SGX_FILE* fp, size_t size, size_t rec_len)
 {
   size_t ret;
+  char* data_local = (char*) malloc(size);
   for(int i = 0; i < size/rec_len; i++)
-    ret += sgx_fwrite((void*)&data[i*rec_len], 1, rec_len, fp);
+    ret += sgx_fwrite(&data_local[i*rec_len], 1, rec_len, fp);
+  free(data_local);
   return ret;
 }
 
@@ -114,15 +116,17 @@ size_t ecall_file_read(SGX_FILE* fp, char* readData, uint64_t size)
 	return sizeofRead;
 }
 
-size_t ecall_seq_file_read(SGX_FILE* fp, char* read_out, uint64_t size, uint64_t rec_len)
+size_t ecall_seq_file_read(SGX_FILE* fp, uint64_t size, uint64_t rec_len)
 {
 	sgx_fseek(fp, 0, SEEK_SET);
   size_t sizeofRead = 0;
 
-  for(int i=0; i < (size/rec_len); i++){
-  	sizeofRead += sgx_fread(&read_out[rec_len*i], rec_len, 1, fp);
-  }
+  char* data_local = malloc(size);
 
+  for(int i=0; i < (size/rec_len); i++){
+  	sizeofRead += sgx_fread(&data_local[rec_len*i], rec_len, 1, fp);
+  }
+  free(data_local);
 	return sizeofRead;
 }
 
